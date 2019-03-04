@@ -2,6 +2,7 @@ import censusdata
 import yaml
 import os.path
 import sys
+import pandas as pd
 
 # TODO: Convert all of this to OO, with each indicator in a separate file.
 
@@ -102,14 +103,14 @@ indicators = {
       'none_f_age7': 'B14003_056E',
       'none_f_age8': 'B14003_057E',
       'none_m': 'B14003_021E',
-      'none_m_age1': 'B14003_021E',
-      'none_m_age2': 'B14003_022E',
-      'none_m_age3': 'B14003_023E',
-      'none_m_age4': 'B14003_024E',
-      'none_m_age5': 'B14003_025E',
-      'none_m_age6': 'B14003_026E',
-      'none_m_age7': 'B14003_027E',
-      'none_m_age8': 'B14003_028E',
+      'none_m_age1': 'B14003_022E',
+      'none_m_age2': 'B14003_023E',
+      'none_m_age3': 'B14003_024E',
+      'none_m_age4': 'B14003_025E',
+      'none_m_age5': 'B14003_026E',
+      'none_m_age6': 'B14003_027E',
+      'none_m_age7': 'B14003_028E',
+      'none_m_age8': 'B14003_029E',
     },
     # Next calculate all the values we'll need for this indicator.
     'calculated_values': {
@@ -130,38 +131,51 @@ indicators = {
       'stu_m_age6': lambda x : x['priv_m_age6'] + x['publ_m_age6'],
       'stu_m_age7': lambda x : x['priv_m_age7'] + x['publ_m_age7'],
       'stu_m_age8': lambda x : x['priv_m_age8'] + x['publ_m_age8'],
+      'all_f_age1': lambda x : x['stu_f_age1'] + x['none_f_age1'],
+      'all_f_age2': lambda x : x['stu_f_age2'] + x['none_f_age2'],
+      'all_f_age3': lambda x : x['stu_f_age3'] + x['none_f_age3'],
+      'all_f_age4': lambda x : x['stu_f_age4'] + x['none_f_age4'],
+      'all_f_age5': lambda x : x['stu_f_age5'] + x['none_f_age5'],
+      'all_f_age6': lambda x : x['stu_f_age6'] + x['none_f_age6'],
+      'all_f_age7': lambda x : x['stu_f_age7'] + x['none_f_age7'],
+      'all_f_age8': lambda x : x['stu_f_age8'] + x['none_f_age8'],
+      'all_m_age1': lambda x : x['stu_m_age1'] + x['none_m_age1'],
+      'all_m_age2': lambda x : x['stu_m_age2'] + x['none_m_age2'],
+      'all_m_age3': lambda x : x['stu_m_age3'] + x['none_m_age3'],
+      'all_m_age4': lambda x : x['stu_m_age4'] + x['none_m_age4'],
+      'all_m_age5': lambda x : x['stu_m_age5'] + x['none_m_age5'],
+      'all_m_age6': lambda x : x['stu_m_age6'] + x['none_m_age6'],
+      'all_m_age7': lambda x : x['stu_m_age7'] + x['none_m_age7'],
+      'all_m_age8': lambda x : x['stu_m_age8'] + x['none_m_age8'],
       'stu_f': lambda x : (x['priv_f'] + x['publ_f']) - (x['stu_f_age1'] + x['stu_f_age8']),
       'stu_m': lambda x : (x['priv_m'] + x['publ_m']) - (x['stu_m_age1'] + x['stu_m_age8']),
-      'none_f': lambda x : x['none_f'] - (x['none_f_age1'] + x['none_f_age8']),
-      'none_m': lambda x : x['none_m'] - (x['none_m_age1'] + x['none_m_age8']),
-      'all_f': lambda x : x['stu_f'] + x['none_f'],
-      'all_m': lambda x : x['stu_m'] + x['none_m'],
-      'all': lambda x : x['all_f'] + x['all_m'],
+      'all_f': lambda x : x['stu_f'] + (x['none_f'] - (x['none_f_age1'] + x['none_f_age8'])),
+      'all_m': lambda x : x['stu_m'] + (x['none_m'] - (x['none_m_age1'] + x['none_m_age8'])),
     },
     # The headline represents all students (male + female + public + private)
-    'headline': lambda x : (x['stu_f'] + x['stu_m']) / x['all'] * 100,
+    'headline': lambda x : (x['stu_f'] + x['stu_m']) / (x['all_f'] + x['all_m']) * 100,
     # Disaggregate by Sex, Age, and Sex/Age combinations.
     'disaggregations': {
-      'Sex:Female': lambda x : x['stu_f'] / x['all'] * 100,
-      'Sex:Male': lambda x : x['stu_m'] / x['all'] * 100,
-      'Age:5 to 9 years': lambda x : (x['stu_m_age2'] + x['stu_f_age2']) / x['all'] * 100,
-      'Age:10 to 14 years': lambda x : (x['stu_m_age3'] + x['stu_f_age3']) / x['all'] * 100,
-      'Age:15 to 17 years': lambda x : (x['stu_m_age4'] + x['stu_f_age4']) / x['all'] * 100,
-      'Age:18 and 19 years': lambda x : (x['stu_m_age5'] + x['stu_f_age5']) / x['all'] * 100,
-      'Age:20 to 24 years': lambda x : (x['stu_m_age6'] + x['stu_f_age6']) / x['all'] * 100,
-      'Age:25 to 34 years': lambda x : (x['stu_m_age7'] + x['stu_f_age7']) / x['all'] * 100,
-      'Sex:Female|Age:5 to 9 years': lambda x : x['stu_f_age2'] / x['all'] * 100,
-      'Sex:Female|Age:10 to 14 years': lambda x : x['stu_f_age3'] / x['all'] * 100,
-      'Sex:Female|Age:15 to 17 years': lambda x : x['stu_f_age4'] / x['all'] * 100,
-      'Sex:Female|Age:18 and 19 years': lambda x : x['stu_f_age5'] / x['all'] * 100,
-      'Sex:Female|Age:20 to 24 years': lambda x : x['stu_f_age6'] / x['all'] * 100,
-      'Sex:Female|Age:25 to 34 years': lambda x : x['stu_f_age7'] / x['all'] * 100,
-      'Sex:Male|Age:5 to 9 years': lambda x : x['stu_m_age2'] / x['all'] * 100,
-      'Sex:Male|Age:10 to 14 years': lambda x : x['stu_m_age3'] / x['all'] * 100,
-      'Sex:Male|Age:15 to 17 years': lambda x : x['stu_m_age4'] / x['all'] * 100,
-      'Sex:Male|Age:18 and 19 years': lambda x : x['stu_m_age5'] / x['all'] * 100,
-      'Sex:Male|Age:20 to 24 years': lambda x : x['stu_m_age6'] / x['all'] * 100,
-      'Sex:Male|Age:25 to 34 years': lambda x : x['stu_m_age7'] / x['all'] * 100,
+      'Sex:Female': lambda x : x['stu_f'] / x['all_f'] * 100,
+      'Sex:Male': lambda x : x['stu_m'] / x['all_m'] * 100,
+      'Age:5 to 9 years': lambda x : (x['stu_m_age2'] + x['stu_f_age2']) / (x['all_m_age2'] + x['all_f_age2']) * 100,
+      'Age:10 to 14 years': lambda x : (x['stu_m_age3'] + x['stu_f_age3']) / (x['all_m_age3'] + x['all_f_age3']) * 100,
+      'Age:15 to 17 years': lambda x : (x['stu_m_age4'] + x['stu_f_age4']) / (x['all_m_age4'] + x['all_f_age4']) * 100,
+      'Age:18 and 19 years': lambda x : (x['stu_m_age5'] + x['stu_f_age5']) / (x['all_m_age5'] + x['all_f_age5']) * 100,
+      'Age:20 to 24 years': lambda x : (x['stu_m_age6'] + x['stu_f_age6']) / (x['all_m_age6'] + x['all_f_age6']) * 100,
+      'Age:25 to 34 years': lambda x : (x['stu_m_age7'] + x['stu_f_age7']) / (x['all_m_age7'] + x['all_f_age7']) * 100,
+      'Sex:Female|Age:5 to 9 years': lambda x : x['stu_f_age2'] / x['all_f_age2'] * 100,
+      'Sex:Female|Age:10 to 14 years': lambda x : x['stu_f_age3'] / x['all_f_age3'] * 100,
+      'Sex:Female|Age:15 to 17 years': lambda x : x['stu_f_age4'] / x['all_f_age4'] * 100,
+      'Sex:Female|Age:18 and 19 years': lambda x : x['stu_f_age5'] / x['all_f_age5'] * 100,
+      'Sex:Female|Age:20 to 24 years': lambda x : x['stu_f_age6'] / x['all_f_age6'] * 100,
+      'Sex:Female|Age:25 to 34 years': lambda x : x['stu_f_age7'] / x['all_f_age7'] * 100,
+      'Sex:Male|Age:5 to 9 years': lambda x : x['stu_m_age2'] / x['all_m_age2'] * 100,
+      'Sex:Male|Age:10 to 14 years': lambda x : x['stu_m_age3'] / x['all_m_age3'] * 100,
+      'Sex:Male|Age:15 to 17 years': lambda x : x['stu_m_age4'] / x['all_m_age4'] * 100,
+      'Sex:Male|Age:18 and 19 years': lambda x : x['stu_m_age5'] / x['all_m_age5'] * 100,
+      'Sex:Male|Age:20 to 24 years': lambda x : x['stu_m_age6'] / x['all_m_age6'] * 100,
+      'Sex:Male|Age:25 to 34 years': lambda x : x['stu_m_age7'] / x['all_m_age7'] * 100,
     },
   },
   #'5-5-1': {
@@ -191,6 +205,13 @@ for geo_id in config['geography']:
   geography_parts.append((geo_id, config['geography'][geo_id]))
 geo = censusdata.censusgeo(geography_parts)
 
+# Helper function for chunking a list into a list of smaller lists.
+def chunk_list(initial_list, chunk_size):
+  final_list = []
+  for i in range(0, len(initial_list), chunk_size):
+    final_list.append(initial_list[i:i+chunk_size])
+  return final_list
+
 # Loop through the indicators to generate CSV files.
 for id in indicators:
   # For each indicator, inherit from the 'defaults' dict.
@@ -199,8 +220,16 @@ for id in indicators:
   df = None
   # We'll make separate API calls for each year.
   for year in indicator['years']:
-    # Query the Census API.
-    data = censusdata.download(indicator['survey'], year, geo, list(indicator['variables'].values()), key=config['api_key'])
+    # Check the variables we're going to need. There is a max of 50 per request.
+    variables = list(indicator['variables'].values())
+    data = None
+    for chunk in chunk_list(variables, 40):
+      # Query the Census API.
+      data_chunk = censusdata.download(indicator['survey'], year, geo, chunk, key=config['api_key'])
+      if data is None:
+        data = data_chunk
+      else:
+        data = pd.concat([data, data_chunk], axis=1)
     # Set the year.
     data['Year'] = year
     # Rename the variable columns so that the lambda functions will work.
@@ -213,7 +242,6 @@ for id in indicators:
     disaggregation_base = data.copy()
     # Calculate the headline value.
     data['Value'] = data.apply(indicator['headline'], axis=1)
-    print(data)
     # Save the row.
     if df is None:
       df = data
